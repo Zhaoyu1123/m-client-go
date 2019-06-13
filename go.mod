@@ -1,3 +1,3 @@
-module gitlab.mfwdev.com/servicemesh/robot
+module robot
 
 go 1.12
