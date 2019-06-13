@@ -28,11 +28,11 @@ func (t Resource) String() string {
 }
 
 // Event represents a registry update event
-type Event int
+type event int
 
 const (
 	// EventAdd is sent when an object is added
-	EventAdd Event = iota
+	EventAdd event = iota
 
 	// EventUpdate is sent when an object is modified
 	// Captures the modified object
@@ -43,9 +43,9 @@ const (
 	EventDelete
 )
 
-func (event Event) String() string {
+func (e event) String() string {
 	out := "unknown"
-	switch event {
+	switch e {
 	case EventAdd:
 		out = "add"
 	case EventUpdate:
@@ -57,6 +57,6 @@ func (event Event) String() string {
 }
 
 type QueueObject struct {
-	typ   Event
-	key   string
+	Typ   event
+	Key   string
 }

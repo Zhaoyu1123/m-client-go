@@ -7,7 +7,7 @@ import (
 
 type queue interface {
 	// Push push an object in queue
-	Push(QueueObject)
+	push(QueueObject)
 
 	// Pop return an object in the queue, if queue is closed
 	// it will return an error
@@ -23,12 +23,14 @@ type queue interface {
 	// Close will cause queue to ignore all new items added to it. As soon as the
 	// worker goroutines have drained the existing items in the queue, they will be
 	// instructed to exit.
-	Close()
+	close()
 }
 
 type wq struct {
 	workqueue.RateLimitingInterface
 }
+
+var _ queue = &wq{}
 
 func newWorkQueue() *wq {
 	return &wq{
@@ -36,7 +38,7 @@ func newWorkQueue() *wq {
 	}
 }
 
-func (c *wq) Push(obj QueueObject) {
+func (c *wq) push(obj QueueObject) {
 	c.Add(obj)
 }
 
@@ -68,6 +70,6 @@ func (c *wq) ReQueue(obj QueueObject) error {
 	return errors.New("This object has been requeued for many times, but still fails.")
 }
 
-func (c *wq) Close() {
+func (c *wq) close() {
 	c.ShutDown()
 }

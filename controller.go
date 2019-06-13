@@ -60,13 +60,13 @@ func (c *controller) Discover(resources []Resource, namespace string) {
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil {
-				c.Push(QueueObject{EventAdd, key})
+				c.push(QueueObject{EventAdd, key})
 			}
 		},
 		UpdateFunc: func(old interface{}, new interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(new)
 			if err == nil {
-				c.Push(QueueObject{EventUpdate, key})
+				c.push(QueueObject{EventUpdate, key})
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -74,7 +74,7 @@ func (c *controller) Discover(resources []Resource, namespace string) {
 			// key function.
 			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 			if err == nil {
-				c.Push(QueueObject{EventDelete, key})
+				c.push(QueueObject{EventDelete, key})
 			}
 		},
 	}
@@ -106,7 +106,7 @@ func (c *controller) Discover(resources []Resource, namespace string) {
 }
 
 func (c *controller) Run()  {
-	defer c.queue.Close()
+	defer c.queue.close()
 
 	c.informers.run(c.stop)
 
