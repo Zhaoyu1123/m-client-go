@@ -24,8 +24,8 @@
     
     	for {
     		obj, _ := r.Pop()
-    		fmt.Println(obj.Typ, obj.Key)
+    		fmt.Println(obj.Event, obj.Key)
     
-    		fmt.Println(r.ListKeys(), len(r.ListKeys()))
+    		fmt.Println(r.ListKeys(), len(r.ListKeys(robot.Services)))
     	}
     }

@@ -79,8 +79,8 @@ func (c *controller) Discover(resources []Resource, namespace string) {
 		},
 	}
 
-	var ds IndexerSet
-	fs := make([]cache.Controller, 0)
+	mis := make(mapIndexerSet)
+	fs := make(informerSet, 0)
 	for _, r := range resources {
 		for _, client := range c.clients {
 			lw := cache.NewListWatchFromClient(client.CoreV1().RESTClient(), r.String(), namespace, fields.Everything())
@@ -89,20 +89,23 @@ func (c *controller) Discover(resources []Resource, namespace string) {
 			switch r {
 			case Services:
 				indexer, informer = cache.NewIndexerInformer(lw, &v1.Service{}, 0, handler, cache.Indexers{})
+				mis[Services] = append(mis[Services], indexer)
 			case Pods:
 				indexer, informer = cache.NewIndexerInformer(lw, &v1.Pod{}, 0, handler, cache.Indexers{})
+				mis[Pods] = append(mis[Pods], indexer)
 			case Endpoints:
 				indexer, informer = cache.NewIndexerInformer(lw, &v1.Endpoints{}, 0, handler, cache.Indexers{})
+				mis[Endpoints] = append(mis[Endpoints], indexer)
 			case ConfigMaps:
 				indexer, informer = cache.NewIndexerInformer(lw, &v1.ConfigMap{}, 0, handler, cache.Indexers{})
+				mis[ConfigMaps] = append(mis[ConfigMaps], indexer)
 			}
-			ds = append(ds, indexer)
 			fs = append(fs, informer)
 		}
 	}
 
 	c.informers = fs
-	c.store = ds
+	c.store = mis
 }
 
 func (c *controller) Run()  {
