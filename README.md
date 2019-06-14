@@ -15,7 +15,7 @@
     )
     
     func main() {
-    	r, err := robot.NewRobot([]string{}, []string{"/Users/zy/.kube/config39", "/Users/zy/.kube/config37"})
+    	r, err := robot.NewRobot([]string{}, []string{".kube/config39", ".kube/config37"})
     	if err != nil {
     		panic(err)
     	}
