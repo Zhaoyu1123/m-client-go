@@ -9,8 +9,10 @@ type store interface {
 
 	ListKeys(Resource) []string
 
-	GetByKey(key string) (item interface{}, exists bool, err error)
+	GetByKey(r Resource, key string) (items []interface{}, exists bool)
 }
+
+var _ store = mapIndexerSet{}
 
 type mapIndexerSet map[Resource][]cache.Indexer
 
@@ -71,17 +73,69 @@ func (mt mapIndexerSet) ListKeys(r Resource) (keys []string) {
 	return
 }
 
-func (mt mapIndexerSet) GetByKey(key string) (item interface{}, exists bool, err error) {
-	for _, set := range mt {
-		for _, indexer := range set {
-			item, exists, err = indexer.GetByKey(key)
+func (mt mapIndexerSet) GetByKey(r Resource, key string) ([]interface{}, bool) {
+	var iterms []interface{}
+	ok := false
+
+	switch r {
+	case All:
+		for _, set := range mt {
+			for _, indexer := range set {
+				item, exists, err := indexer.GetByKey(key)
+				if err != nil {
+					continue
+				}
+				if exists {
+					ok = true
+					iterms = append(iterms, item)
+				}
+			}
+		}
+	case Services:
+		for _, indexer := range mt[Services] {
+			item, exists, err := indexer.GetByKey(key)
 			if err != nil {
-				return
+				continue
 			}
 			if exists {
-				return
+				ok = true
+				iterms = append(iterms, item)
+			}
+		}
+	case Pods:
+		for _, indexer := range mt[Pods] {
+			item, exists, err := indexer.GetByKey(key)
+			if err != nil {
+				continue
+			}
+			if exists {
+				ok = true
+				iterms = append(iterms, item)
+			}
+		}
+	case Endpoints:
+		for _, indexer := range mt[Endpoints] {
+			item, exists, err := indexer.GetByKey(key)
+			if err != nil {
+				continue
+			}
+			if exists {
+				ok = true
+				iterms = append(iterms, item)
+			}
+		}
+	case ConfigMaps:
+		for _, indexer := range mt[ConfigMaps] {
+			item, exists, err := indexer.GetByKey(key)
+			if err != nil {
+				continue
+			}
+			if exists {
+				ok = true
+				iterms = append(iterms, item)
 			}
 		}
 	}
-	return
+
+	return iterms, ok
 }
