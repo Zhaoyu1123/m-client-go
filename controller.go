@@ -1,6 +1,7 @@
 package robot
 
 import (
+	"errors"
 	"k8s.io/api/core/v1"
 
 	"k8s.io/apimachinery/pkg/fields"
@@ -134,6 +135,10 @@ func (s informerSet) run(done chan struct{}) {
 }
 
 func newClientSet (masterUrl, kubeconfigPath []string) ([]*kubernetes.Clientset, error) {
+	if len(masterUrl) == 0 && len(kubeconfigPath) == 0 {
+		return nil, errors.New("Can`t find a way to access to k8s api. ")
+	}
+
 	cs := make([]*kubernetes.Clientset, 0)
 	if len(masterUrl) != 0 {
 		for _, uri := range masterUrl {
