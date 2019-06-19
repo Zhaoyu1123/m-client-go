@@ -1,4 +1,4 @@
-module github.com/pgder/m-client-go
+module gitlab.mfwdev.com/servicemesh/robot
 
 go 1.12
 
