@@ -19,7 +19,7 @@ func main() {
     if err != nil {
         panic(err)
     }
-    r.Discover([]robot.Resource{robot.Endpoints, robot.Pods}, []strings{"default/productpage"},"default")
+    r.Discover([]robot.Resource{robot.Endpoints, robot.Pods}, []strings{"default/productpage"})
     go r.Run()
 
     for {

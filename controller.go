@@ -16,7 +16,7 @@ import (
 type Robot interface {
 	// Discover define which resources will be discovered under the fixed namespace of k8s
 	// If the namespace is empty, it will discover all k8s namespaces
-	Discover(resources []Resource, resourceName []string, namespace string)
+	Discover(resources []Resource, resourceName []string)
 
 	// Run start up the robot.
 	// Start monitoring resources and sending events to the queue.
@@ -57,7 +57,7 @@ func NewRobot(masterUrl, kubeconfigPath []string) (Robot, error) {
 	}, nil
 }
 
-func (c *controller) Discover(resources []Resource, resourceName []string, namespace string) {
+func (c *controller) Discover(resources []Resource, resourceName []string) {
 	handler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
@@ -85,7 +85,7 @@ func (c *controller) Discover(resources []Resource, resourceName []string, names
 	fs := make(informerSet, 0)
 	for _, r := range resources {
 		for _, client := range c.clients {
-			lw := cache.NewListWatchFromClient(client.CoreV1().RESTClient(), r.String(), namespace, fields.Everything())
+			lw := cache.NewListWatchFromClient(client.CoreV1().RESTClient(), r.String(), "", fields.Everything())
 			var indexer cache.Indexer
 			var informer cache.Controller
 			switch r {
