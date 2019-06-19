@@ -2,7 +2,8 @@ package robot
 
 import (
 	"errors"
-	"k8s.io/api/core/v1"
+
+	v1 "k8s.io/api/core/v1"
 
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
@@ -15,7 +16,7 @@ import (
 type Robot interface {
 	// Discover define which resources will be discovered under the fixed namespace of k8s
 	// If the namespace is empty, it will discover all k8s namespaces
-	Discover(resources []Resource, namespace string)
+	Discover(resources []Resource, resourceName []string, namespace string)
 
 	// Run start up the robot.
 	// Start monitoring resources and sending events to the queue.
@@ -31,10 +32,10 @@ type Robot interface {
 }
 
 type controller struct {
-	clients 	[]*kubernetes.Clientset
-	informers 	informerSet
+	clients   []*kubernetes.Clientset
+	informers informerSet
 
-	stop        chan struct{}
+	stop chan struct{}
 
 	queue
 
@@ -44,29 +45,29 @@ type controller struct {
 var _ Robot = &controller{}
 
 func NewRobot(masterUrl, kubeconfigPath []string) (Robot, error) {
-	cs, err := newClientSet(masterUrl, kubeconfigPath)
+	cs, err := newClientSets(masterUrl, kubeconfigPath)
 	if err != nil {
 		return nil, err
 	}
 
 	return &controller{
-		clients:cs,
-		queue: newWorkQueue(),
-		stop: make(chan struct{}, 1),
+		clients: cs,
+		queue:   newWorkQueue(),
+		stop:    make(chan struct{}, 1),
 	}, nil
 }
 
-func (c *controller) Discover(resources []Resource, namespace string) {
+func (c *controller) Discover(resources []Resource, resourceName []string, namespace string) {
 	handler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
-			if err == nil {
+			if err == nil && filter(resourceName, key) {
 				c.push(QueueObject{EventAdd, key})
 			}
 		},
 		UpdateFunc: func(old interface{}, new interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(new)
-			if err == nil {
+			if err == nil && filter(resourceName, key) {
 				c.push(QueueObject{EventUpdate, key})
 			}
 		},
@@ -74,7 +75,7 @@ func (c *controller) Discover(resources []Resource, namespace string) {
 			// IndexerInformer uses a delta queue, therefore for deletes we have to use this
 			// key function.
 			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-			if err == nil {
+			if err == nil && filter(resourceName, key) {
 				c.push(QueueObject{EventDelete, key})
 			}
 		},
@@ -109,7 +110,7 @@ func (c *controller) Discover(resources []Resource, namespace string) {
 	c.store = mis
 }
 
-func (c *controller) Run()  {
+func (c *controller) Run() {
 	defer c.queue.close()
 
 	c.informers.run(c.stop)
@@ -117,7 +118,7 @@ func (c *controller) Run()  {
 	<-c.stop
 }
 
-func (c *controller) Stop()  {
+func (c *controller) Stop() {
 	c.stop <- struct{}{}
 }
 
@@ -134,7 +135,7 @@ func (s informerSet) run(done chan struct{}) {
 	}
 }
 
-func newClientSet (masterUrl, kubeconfigPath []string) ([]*kubernetes.Clientset, error) {
+func newClientSets(masterUrl, kubeconfigPath []string) ([]*kubernetes.Clientset, error) {
 	if len(masterUrl) == 0 && len(kubeconfigPath) == 0 {
 		return nil, errors.New("Can`t find a way to access to k8s api. ")
 	}
@@ -168,4 +169,13 @@ func newClientSet (masterUrl, kubeconfigPath []string) ([]*kubernetes.Clientset,
 		}
 	}
 	return cs, nil
+}
+
+func filter(resourceName []string, key string) bool {
+	for _, name := range resourceName {
+		if name == key {
+			return true
+		}
+	}
+	return false
 }

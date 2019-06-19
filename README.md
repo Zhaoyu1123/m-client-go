@@ -3,29 +3,30 @@
 基于 client-go 实现 k8s 多集群的资源调度。
 
 #### 架构
-![avatar](./robot.png)
+![avatar](./images/robot.png)
 
 #### 例子
+```$xslt
+package main
 
-    package main
-    
-    import (
-    	"fmt"
-    	"robot"
-    )
-    
-    func main() {
-    	r, err := robot.NewRobot([]string{}, []string{".kube/config39", ".kube/config37"})
-    	if err != nil {
-    		panic(err)
-    	}
-    	r.Discover([]robot.Resource{robot.Endpoints, robot.Pods}, "default")
-    	go r.Run()
-    
-    	for {
-    		obj, _ := r.Pop()
-    		fmt.Println(obj.Event, obj.Key)
-    
-    		fmt.Println(r.ListKeys(), len(r.ListKeys(robot.Services)))
-    	}
+import (
+    "fmt"
+    "robot"
+)
+
+func main() {
+    r, err := robot.NewRobot([]string{}, []string{".kube/config39", ".kube/config37"})
+    if err != nil {
+        panic(err)
     }
+    r.Discover([]robot.Resource{robot.Endpoints, robot.Pods}, []strings{"default/productpage"},"default")
+    go r.Run()
+
+    for {
+        obj, _ := r.Pop()
+        fmt.Println(obj.Event, obj.Key)
+
+        fmt.Println(r.ListKeys(), len(r.ListKeys(robot.Services)))
+    }
+}
+```

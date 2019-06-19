@@ -2,6 +2,7 @@ package robot
 
 import (
 	"errors"
+
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -45,7 +46,7 @@ func (c *wq) push(obj QueueObject) {
 func (c *wq) Pop() (QueueObject, error) {
 	obj, quit := c.Get()
 	if quit {
-		return QueueObject{}, errors.New("Controller has been stoped.")
+		return QueueObject{}, errors.New("Controller has been stoped. ")
 	}
 
 	return obj.(QueueObject), nil
@@ -67,7 +68,7 @@ func (c *wq) ReQueue(obj QueueObject) error {
 
 	c.Done(obj)
 
-	return errors.New("This object has been requeued for many times, but still fails.")
+	return errors.New("This object has been requeued for many times, but still fails. ")
 }
 
 func (c *wq) close() {
