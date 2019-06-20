@@ -2,6 +2,8 @@ package robot
 
 import (
 	"errors"
+	"log"
+	"reflect"
 
 	v1 "k8s.io/api/core/v1"
 
@@ -57,30 +59,42 @@ func NewRobot(masterUrl, kubeconfigPath []string) (Robot, error) {
 	}, nil
 }
 
-func (c *controller) Discover(resources []Resource, resourceName []string) {
+func (c *controller) NewHandle(resource Resource) cache.ResourceEventHandlerFuncs {
 	handler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
-			if err == nil && filter(resourceName, key) {
-				c.push(QueueObject{EventAdd, key})
+			if err == nil {
+				c.push(QueueObject{EventAdd, resource.String(), key})
 			}
 		},
 		UpdateFunc: func(old interface{}, new interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(new)
-			if err == nil && filter(resourceName, key) {
-				c.push(QueueObject{EventUpdate, key})
+			if err == nil {
+				if resource == Endpoints {
+					oldE := old.(*v1.Endpoints)
+					curE := new.(*v1.Endpoints)
+					if !reflect.DeepEqual(oldE.Subsets, curE.Subsets) {
+						log.Println("Update:", key)
+						c.push(QueueObject{EventUpdate, resource.String(), key})
+					}
+				} else {
+					c.push(QueueObject{EventUpdate, resource.String(), key})
+				}
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			// IndexerInformer uses a delta queue, therefore for deletes we have to use this
 			// key function.
 			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-			if err == nil && filter(resourceName, key) {
-				c.push(QueueObject{EventDelete, key})
+			if err == nil {
+				c.push(QueueObject{EventDelete, resource.String(), key})
 			}
 		},
 	}
+	return handler
+}
 
+func (c *controller) Discover(resources []Resource, resourceName []string) {
 	mis := make(mapIndexerSet)
 	fs := make(informerSet, 0)
 	for _, r := range resources {
@@ -90,16 +104,16 @@ func (c *controller) Discover(resources []Resource, resourceName []string) {
 			var informer cache.Controller
 			switch r {
 			case Services:
-				indexer, informer = cache.NewIndexerInformer(lw, &v1.Service{}, 0, handler, cache.Indexers{})
+				indexer, informer = cache.NewIndexerInformer(lw, &v1.Service{}, 0, c.NewHandle(r), cache.Indexers{})
 				mis[Services] = append(mis[Services], indexer)
 			case Pods:
-				indexer, informer = cache.NewIndexerInformer(lw, &v1.Pod{}, 0, handler, cache.Indexers{})
+				indexer, informer = cache.NewIndexerInformer(lw, &v1.Pod{}, 0, c.NewHandle(r), cache.Indexers{})
 				mis[Pods] = append(mis[Pods], indexer)
 			case Endpoints:
-				indexer, informer = cache.NewIndexerInformer(lw, &v1.Endpoints{}, 0, handler, cache.Indexers{})
+				indexer, informer = cache.NewIndexerInformer(lw, &v1.Endpoints{}, 0, c.NewHandle(r), cache.Indexers{})
 				mis[Endpoints] = append(mis[Endpoints], indexer)
 			case ConfigMaps:
-				indexer, informer = cache.NewIndexerInformer(lw, &v1.ConfigMap{}, 0, handler, cache.Indexers{})
+				indexer, informer = cache.NewIndexerInformer(lw, &v1.ConfigMap{}, 0, c.NewHandle(r), cache.Indexers{})
 				mis[ConfigMaps] = append(mis[ConfigMaps], indexer)
 			}
 			fs = append(fs, informer)
@@ -169,13 +183,4 @@ func newClientSets(masterUrl, kubeconfigPath []string) ([]*kubernetes.Clientset,
 		}
 	}
 	return cs, nil
-}
-
-func filter(resourceName []string, key string) bool {
-	for _, name := range resourceName {
-		if name == key {
-			return true
-		}
-	}
-	return false
 }

@@ -3,7 +3,7 @@ package robot
 type Resource int
 
 const (
-	All 		Resource = iota
+	All Resource = iota
 
 	Services
 
@@ -59,6 +59,7 @@ func (e event) String() string {
 }
 
 type QueueObject struct {
-	Event   event
-	Key   	string
+	Event    event
+	Resource string
+	Key      string
 }
