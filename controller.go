@@ -64,7 +64,7 @@ func (c *controller) newHandle(resource Resource) cache.ResourceEventHandlerFunc
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil {
-				c.push(QueueObject{EventAdd, resource.String(), key})
+				c.push(QueueObject{EventAdd, resource, key})
 			}
 		},
 		UpdateFunc: func(old interface{}, new interface{}) {
@@ -75,10 +75,10 @@ func (c *controller) newHandle(resource Resource) cache.ResourceEventHandlerFunc
 					curE := new.(*v1.Endpoints)
 					if !reflect.DeepEqual(oldE.Subsets, curE.Subsets) {
 						log.Println("Update:", key)
-						c.push(QueueObject{EventUpdate, resource.String(), key})
+						c.push(QueueObject{EventUpdate, resource, key})
 					}
 				} else {
-					c.push(QueueObject{EventUpdate, resource.String(), key})
+					c.push(QueueObject{EventUpdate, resource, key})
 				}
 			}
 		},
@@ -87,7 +87,7 @@ func (c *controller) newHandle(resource Resource) cache.ResourceEventHandlerFunc
 			// key function.
 			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 			if err == nil {
-				c.push(QueueObject{EventDelete, resource.String(), key})
+				c.push(QueueObject{EventDelete, resource, key})
 			}
 		},
 	}

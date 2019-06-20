@@ -18,8 +18,8 @@ type queue interface {
 	// But it can`t be ReQueue for more than 3 times.
 	ReQueue(QueueObject) error
 
-	// Done indicates that an object has been successfully processed.
-	Done(QueueObject)
+	// Finish indicates that an object has been successfully processed.
+	Finish(QueueObject)
 
 	// Close will cause queue to ignore all new items added to it. As soon as the
 	// worker goroutines have drained the existing items in the queue, they will be
@@ -40,7 +40,7 @@ func newWorkQueue() *wq {
 }
 
 func (c *wq) push(obj QueueObject) {
-	c.Add(obj)
+	c.AddRateLimited(obj)
 }
 
 func (c *wq) Pop() (QueueObject, error) {
@@ -52,7 +52,8 @@ func (c *wq) Pop() (QueueObject, error) {
 	return obj.(QueueObject), nil
 }
 
-func (c *wq) Done(obj QueueObject) {
+func (c *wq) Finish(obj QueueObject) {
+	c.Forget(obj)
 	c.Done(obj)
 }
 
