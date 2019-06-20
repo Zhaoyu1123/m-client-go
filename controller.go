@@ -59,7 +59,7 @@ func NewRobot(masterUrl, kubeconfigPath []string) (Robot, error) {
 	}, nil
 }
 
-func (c *controller) NewHandle(resource Resource) cache.ResourceEventHandlerFuncs {
+func (c *controller) newHandle(resource Resource) cache.ResourceEventHandlerFuncs {
 	handler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
@@ -104,16 +104,16 @@ func (c *controller) Discover(resources []Resource, resourceName []string) {
 			var informer cache.Controller
 			switch r {
 			case Services:
-				indexer, informer = cache.NewIndexerInformer(lw, &v1.Service{}, 0, c.NewHandle(r), cache.Indexers{})
+				indexer, informer = cache.NewIndexerInformer(lw, &v1.Service{}, 0, c.newHandle(r), cache.Indexers{})
 				mis[Services] = append(mis[Services], indexer)
 			case Pods:
-				indexer, informer = cache.NewIndexerInformer(lw, &v1.Pod{}, 0, c.NewHandle(r), cache.Indexers{})
+				indexer, informer = cache.NewIndexerInformer(lw, &v1.Pod{}, 0, c.newHandle(r), cache.Indexers{})
 				mis[Pods] = append(mis[Pods], indexer)
 			case Endpoints:
-				indexer, informer = cache.NewIndexerInformer(lw, &v1.Endpoints{}, 0, c.NewHandle(r), cache.Indexers{})
+				indexer, informer = cache.NewIndexerInformer(lw, &v1.Endpoints{}, 0, c.newHandle(r), cache.Indexers{})
 				mis[Endpoints] = append(mis[Endpoints], indexer)
 			case ConfigMaps:
-				indexer, informer = cache.NewIndexerInformer(lw, &v1.ConfigMap{}, 0, c.NewHandle(r), cache.Indexers{})
+				indexer, informer = cache.NewIndexerInformer(lw, &v1.ConfigMap{}, 0, c.newHandle(r), cache.Indexers{})
 				mis[ConfigMaps] = append(mis[ConfigMaps], indexer)
 			}
 			fs = append(fs, informer)
