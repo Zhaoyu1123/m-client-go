@@ -50,13 +50,13 @@ func TestQueue(t *testing.T) {
 		t.Errorf("expected %v, got %v", e, a)
 	}
 
-	q.ReQueue(objOne)
-	q.ReQueue(objOne)
+	_ = q.ReQueue(objOne)
+	_ = q.ReQueue(objOne)
 	if e, a := 3, q.NumRequeues(objOne); e != a {
 		t.Errorf("expected %v, got %v", e, a)
 	}
 
-	q.ReQueue(objOne)
+	_ = q.ReQueue(objOne)
 	if e, a := 0, q.NumRequeues(objOne); e != a {
 		t.Errorf("expected %v, got %v", e, a)
 	}

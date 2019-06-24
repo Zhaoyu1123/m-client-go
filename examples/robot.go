@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"robot"
 	"time"
+
+	"gitlab.mfwdev.com/servicemesh/robot"
 )
 
 func main() {
-	r, err := robot.NewRobot([]string{}, []string{"/Users/zy/.kube/config37"})
+	r, err := robot.NewRobot([]string{}, []string{"../config/pioneer"})
 	if err != nil {
 		panic(err)
 	}
@@ -17,7 +18,7 @@ func main() {
 	for {
 		obj, _ := r.Pop()
 		if err := process(obj); err != nil {
-			r.ReQueue(obj)
+			_ = r.ReQueue(obj)
 		} else {
 			r.Finish(obj)
 		}
@@ -27,5 +28,6 @@ func main() {
 func process(obj robot.QueueObject) error {
 	// your own logic
 	fmt.Println(time.Now(), obj.Event, obj.RType, obj.Key)
+	time.Sleep(1 * time.Second)
 	return nil
 }

@@ -2,10 +2,10 @@ package robot
 
 import (
 	"errors"
-	"log"
 	"reflect"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
@@ -64,7 +64,7 @@ func (c *controller) newHandle(resource Resource) cache.ResourceEventHandlerFunc
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil {
-				c.push(QueueObject{EventAdd, resource, key})
+				c.push(QueueObject{EventAdd, resource, key, MetaUIDFunc(obj)})
 			}
 		},
 		UpdateFunc: func(old interface{}, new interface{}) {
@@ -74,11 +74,10 @@ func (c *controller) newHandle(resource Resource) cache.ResourceEventHandlerFunc
 					oldE := old.(*v1.Endpoints)
 					curE := new.(*v1.Endpoints)
 					if !reflect.DeepEqual(oldE.Subsets, curE.Subsets) {
-						log.Println("Update:", key)
-						c.push(QueueObject{EventUpdate, resource, key})
+						c.push(QueueObject{EventUpdate, resource, key, MetaUIDFunc(new)})
 					}
 				} else {
-					c.push(QueueObject{EventUpdate, resource, key})
+					c.push(QueueObject{EventUpdate, resource, key, MetaUIDFunc(new)})
 				}
 			}
 		},
@@ -87,7 +86,7 @@ func (c *controller) newHandle(resource Resource) cache.ResourceEventHandlerFunc
 			// key function.
 			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 			if err == nil {
-				c.push(QueueObject{EventDelete, resource, key})
+				c.push(QueueObject{EventDelete, resource, key, MetaUIDFunc(obj)})
 			}
 		},
 	}
@@ -183,4 +182,12 @@ func newClientSets(masterUrl, kubeconfigPath []string) ([]*kubernetes.Clientset,
 		}
 	}
 	return cs, nil
+}
+
+func MetaUIDFunc(obj interface{}) string {
+	metaInfo, err := meta.Accessor(obj)
+	if err != nil {
+		return ""
+	}
+	return string(metaInfo.GetUID())
 }
