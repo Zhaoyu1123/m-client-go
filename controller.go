@@ -2,8 +2,8 @@ package robot
 
 import (
 	"errors"
-	"log"
 	"reflect"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 
@@ -18,7 +18,7 @@ import (
 type Robot interface {
 	// Discover define which resources will be discovered under the fixed namespace of k8s
 	// If the namespace is empty, it will discover all k8s namespaces
-	Discover(resources []Resource, resourceName []string)
+	// Discover(resources []Resource, resourceName []string)
 
 	// Run start up the robot.
 	// Start monitoring resources and sending events to the queue.
@@ -46,25 +46,40 @@ type controller struct {
 
 var _ Robot = &controller{}
 
-func NewRobot(masterUrl, kubeconfigPath []string) (Robot, error) {
-	cs, err := newClientSets(masterUrl, kubeconfigPath)
-	if err != nil {
-		return nil, err
-	}
-
-	return &controller{
-		clients: cs,
+func NewRobot(clusters ...Cluster) (Robot, error) {
+	core := &controller{
 		queue:   newWorkQueue(),
 		stop:    make(chan struct{}, 1),
-	}, nil
+	}
+
+	store := make(mapIndexerSet)
+	informers := make(informerSet, 0)
+
+	for _, c := range clusters {
+		client, err := c.newClient()
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range c.Resources {
+			indexer, informer := r.createIndexInformer(client, core.queue)
+
+			store[r.RType] = append(store[r.RType], indexer)
+			informers = append(informers, informer)
+		}
+	}
+
+	core.informers = informers
+	core.store = store
+
+	return core, nil
 }
 
-func (c *controller) newHandle(resource Resource) cache.ResourceEventHandlerFuncs {
+func initHandle(resource Resource, worker queue) cache.ResourceEventHandlerFuncs {
 	handler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil {
-				c.push(QueueObject{EventAdd, resource, key})
+				worker.push(QueueObject{EventAdd, resource, key, time.Now()})
 			}
 		},
 		UpdateFunc: func(old interface{}, new interface{}) {
@@ -74,11 +89,10 @@ func (c *controller) newHandle(resource Resource) cache.ResourceEventHandlerFunc
 					oldE := old.(*v1.Endpoints)
 					curE := new.(*v1.Endpoints)
 					if !reflect.DeepEqual(oldE.Subsets, curE.Subsets) {
-						log.Println("Update:", key)
-						c.push(QueueObject{EventUpdate, resource, key})
+						worker.push(QueueObject{EventUpdate, resource, key, time.Now()})
 					}
 				} else {
-					c.push(QueueObject{EventUpdate, resource, key})
+					worker.push(QueueObject{EventUpdate, resource, key, time.Now()})
 				}
 			}
 		},
@@ -87,41 +101,11 @@ func (c *controller) newHandle(resource Resource) cache.ResourceEventHandlerFunc
 			// key function.
 			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 			if err == nil {
-				c.push(QueueObject{EventDelete, resource, key})
+				worker.push(QueueObject{EventDelete, resource, key, time.Now()})
 			}
 		},
 	}
 	return handler
-}
-
-func (c *controller) Discover(resources []Resource, resourceName []string) {
-	mis := make(mapIndexerSet)
-	fs := make(informerSet, 0)
-	for _, r := range resources {
-		for _, client := range c.clients {
-			lw := cache.NewListWatchFromClient(client.CoreV1().RESTClient(), r.String(), "", fields.Everything())
-			var indexer cache.Indexer
-			var informer cache.Controller
-			switch r {
-			case Services:
-				indexer, informer = cache.NewIndexerInformer(lw, &v1.Service{}, 0, c.newHandle(r), cache.Indexers{})
-				mis[Services] = append(mis[Services], indexer)
-			case Pods:
-				indexer, informer = cache.NewIndexerInformer(lw, &v1.Pod{}, 0, c.newHandle(r), cache.Indexers{})
-				mis[Pods] = append(mis[Pods], indexer)
-			case Endpoints:
-				indexer, informer = cache.NewIndexerInformer(lw, &v1.Endpoints{}, 0, c.newHandle(r), cache.Indexers{})
-				mis[Endpoints] = append(mis[Endpoints], indexer)
-			case ConfigMaps:
-				indexer, informer = cache.NewIndexerInformer(lw, &v1.ConfigMap{}, 0, c.newHandle(r), cache.Indexers{})
-				mis[ConfigMaps] = append(mis[ConfigMaps], indexer)
-			}
-			fs = append(fs, informer)
-		}
-	}
-
-	c.informers = fs
-	c.store = mis
 }
 
 func (c *controller) Run() {
@@ -149,38 +133,43 @@ func (s informerSet) run(done chan struct{}) {
 	}
 }
 
-func newClientSets(masterUrl, kubeconfigPath []string) ([]*kubernetes.Clientset, error) {
-	if len(masterUrl) == 0 && len(kubeconfigPath) == 0 {
-		return nil, errors.New("Can`t find a way to access to k8s api. ")
-	}
+type RN struct {
+	RType          Resource
+	Namespace      string
+}
 
-	cs := make([]*kubernetes.Clientset, 0)
-	if len(masterUrl) != 0 {
-		for _, uri := range masterUrl {
-			config, err := clientcmd.BuildConfigFromFlags(uri, "")
-			if err != nil {
-				return nil, err
-			}
-			client, err := kubernetes.NewForConfig(config)
-			if err != nil {
-				return nil, err
-			}
-			cs = append(cs, client)
-		}
+func (r *RN) createIndexInformer(client *kubernetes.Clientset, worker queue) (indexer cache.Indexer, informer cache.Controller)  {
+	lw := cache.NewListWatchFromClient(client.CoreV1().RESTClient(), r.RType.String(), r.Namespace, fields.Everything())
+	switch r.RType {
+	case Services:
+		indexer, informer = cache.NewIndexerInformer(lw, &v1.Service{}, 0, initHandle(Services, worker), cache.Indexers{})
+	case Pods:
+		indexer, informer = cache.NewIndexerInformer(lw, &v1.Pod{}, 0, initHandle(Pods, worker), cache.Indexers{})
+	case Endpoints:
+		indexer, informer = cache.NewIndexerInformer(lw, &v1.Endpoints{}, 0, initHandle(Endpoints, worker), cache.Indexers{})
+	case ConfigMaps:
+		indexer, informer = cache.NewIndexerInformer(lw, &v1.ConfigMap{}, 0, initHandle(ConfigMaps, worker), cache.Indexers{})
 	}
+	return
+}
 
-	if len(kubeconfigPath) != 0 {
-		for _, path := range kubeconfigPath {
-			config, err := clientcmd.BuildConfigFromFlags("", path)
-			if err != nil {
-				return nil, err
-			}
-			client, err := kubernetes.NewForConfig(config)
-			if err != nil {
-				return nil, err
-			}
-			cs = append(cs, client)
+type Cluster struct {
+	ConfigPath      string
+	MasterUrl       string
+	Resources       []RN
+}
+
+func (c *Cluster) newClient() (*kubernetes.Clientset, error) {
+	if c.ConfigPath != "" || c.MasterUrl != "" {
+		config, err := clientcmd.BuildConfigFromFlags(c.MasterUrl, c.ConfigPath)
+		if err != nil {
+			return nil, err
 		}
+		clientset, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			return nil, err
+		}
+		return clientset, nil
 	}
-	return cs, nil
+	return nil, errors.New("Can`t find a way to access to k8s api. Please make sure ConfigPath or MasterUrl in cluster ")
 }

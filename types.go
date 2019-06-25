@@ -1,5 +1,7 @@
 package robot
 
+import "time"
+
 type Resource int
 
 const (
@@ -62,4 +64,5 @@ type QueueObject struct {
 	Event    	event
 	RType 		Resource
 	Key      	string
+	CreateAt    time.Time
 }
