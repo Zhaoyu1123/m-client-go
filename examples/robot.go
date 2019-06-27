@@ -12,7 +12,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	r.Discover([]robot.Resource{robot.Services, robot.Endpoints}, []string{"default/details"})
+	r.Discover([]robot.Resource{robot.Services, robot.Endpoints}, []string{"default/productpage"})
 	go r.Run()
 
 	for {
@@ -28,6 +28,5 @@ func main() {
 func process(obj robot.QueueObject) error {
 	// your own logic
 	fmt.Println(time.Now(), obj.Event, obj.RType, obj.Key)
-	time.Sleep(1 * time.Second)
 	return nil
 }

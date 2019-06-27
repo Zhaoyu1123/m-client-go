@@ -3,6 +3,7 @@ package robot
 import (
 	"errors"
 	"reflect"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -64,20 +65,22 @@ func (c *controller) newHandle(resource Resource) cache.ResourceEventHandlerFunc
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil {
-				c.push(QueueObject{EventAdd, resource, key, MetaUIDFunc(obj)})
+				c.push(QueueObject{EventAdd, resource, key, MetaUIDFunc(obj), time.Now()})
 			}
 		},
 		UpdateFunc: func(old interface{}, new interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(new)
+			bAdd := true
 			if err == nil {
 				if resource == Endpoints {
 					oldE := old.(*v1.Endpoints)
 					curE := new.(*v1.Endpoints)
-					if !reflect.DeepEqual(oldE.Subsets, curE.Subsets) {
-						c.push(QueueObject{EventUpdate, resource, key, MetaUIDFunc(new)})
+					if reflect.DeepEqual(oldE.Subsets, curE.Subsets) {
+						bAdd = false
 					}
-				} else {
-					c.push(QueueObject{EventUpdate, resource, key, MetaUIDFunc(new)})
+				}
+				if bAdd {
+					c.push(QueueObject{EventUpdate, resource, key, MetaUIDFunc(new), time.Now()})
 				}
 			}
 		},
@@ -86,7 +89,7 @@ func (c *controller) newHandle(resource Resource) cache.ResourceEventHandlerFunc
 			// key function.
 			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 			if err == nil {
-				c.push(QueueObject{EventDelete, resource, key, MetaUIDFunc(obj)})
+				c.push(QueueObject{EventDelete, resource, key, MetaUIDFunc(obj), time.Now()})
 			}
 		},
 	}

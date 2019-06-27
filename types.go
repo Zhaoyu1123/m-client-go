@@ -1,5 +1,7 @@
 package robot
 
+import "time"
+
 type Resource int
 
 const (
@@ -59,8 +61,9 @@ func (e event) String() string {
 }
 
 type QueueObject struct {
-	Event event
-	RType Resource
-	Key   string
-	Uid   string
+	Event  event
+	RType  Resource
+	Key    string
+	Uid    string
+	Create time.Time
 }
