@@ -2,13 +2,14 @@ package robot
 
 import (
 	"testing"
+	"time"
 )
 
 func TestQueue(t *testing.T) {
 	q := newWorkQueue()
 
-	objOne := QueueObject{EventAdd, Endpoints, "one"}
-	objTwo := QueueObject{EventAdd, Endpoints, "two"}
+	objOne := QueueObject{EventAdd, Endpoints, "one", "uidone", time.Now()}
+	objTwo := QueueObject{EventAdd, Endpoints, "two", "uidtwo", time.Now()}
 
 	q.push(objOne)
 
