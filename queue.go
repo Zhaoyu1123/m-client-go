@@ -2,7 +2,6 @@ package robot
 
 import (
 	"errors"
-
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -35,7 +34,7 @@ var _ queue = &wq{}
 
 func newWorkQueue() *wq {
 	return &wq{
-		workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		workqueue.NewRateLimitingQueue(workqueue.DefaultItemBasedRateLimiter()),
 	}
 }
 
