@@ -6,6 +6,7 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
@@ -84,6 +85,7 @@ func initHandle(resource Resource, worker queue) cache.ResourceEventHandlerFuncs
 		},
 		UpdateFunc: func(old interface{}, new interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(new)
+			bAdd := true
 			if err == nil {
 				if resource == Endpoints {
 					oldE := old.(*v1.Endpoints)
@@ -172,4 +174,12 @@ func (c *Cluster) newClient() (*kubernetes.Clientset, error) {
 		return clientset, nil
 	}
 	return nil, errors.New("Can`t find a way to access to k8s api. Please make sure ConfigPath or MasterUrl in cluster ")
+}
+
+func MetaUIDFunc(obj interface{}) string {
+	metaInfo, err := meta.Accessor(obj)
+	if err != nil {
+		return ""
+	}
+	return string(metaInfo.GetUID())
 }

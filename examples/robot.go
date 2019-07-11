@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"gitlab.mfwdev.com/servicemesh/robot"
 	"time"
+
+	"gitlab.mfwdev.com/servicemesh/robot"
 )
 
 func main() {
