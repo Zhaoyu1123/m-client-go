@@ -8,8 +8,10 @@ import (
 func TestQueue(t *testing.T) {
 	q := newWorkQueue()
 
-	objOne := QueueObject{EventAdd, Endpoints, "one", "uidone", time.Now()}
-	objTwo := QueueObject{EventAdd, Endpoints, "two", "uidtwo", time.Now()}
+	createTime := time.Now()
+
+	objOne := QueueObject{EventAdd, Endpoints, "one", createTime}
+	objTwo := QueueObject{EventAdd, Endpoints, "two", createTime}
 
 	q.push(objOne)
 

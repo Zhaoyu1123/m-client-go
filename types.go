@@ -61,9 +61,8 @@ func (e event) String() string {
 }
 
 type QueueObject struct {
-	Event  event
-	RType  Resource
-	Key    string
-	Uid    string
-	Create time.Time
+	Event    	event
+	RType 		Resource
+	Key      	string
+	CreateAt    time.Time
 }

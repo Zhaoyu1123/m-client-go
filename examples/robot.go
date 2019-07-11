@@ -2,27 +2,49 @@ package main
 
 import (
 	"fmt"
+	"gitlab.mfwdev.com/servicemesh/robot"
 	"time"
 
 	"gitlab.mfwdev.com/servicemesh/robot"
 )
 
 func main() {
-	r, err := robot.NewRobot([]string{}, []string{"../config/pioneer"})
+	r, err := robot.NewRobot(
+		robot.Cluster{
+			ConfigPath:"/Users/zy/.kube/config37",
+			Resources:[]robot.RN{
+				{robot.Services, "istio-system"},
+				{robot.Pods, "istio-system"},
+				{robot.Endpoints, "default"},
+			},
+		},
+		robot.Cluster{
+			ConfigPath:"/Users/zy/.kube/config39",
+			Resources:[]robot.RN{
+				{robot.Services, "istio-system"},
+				{robot.Pods, "istio-system"},
+				{robot.Pods, "default"},
+			},
+		},
+	)
 	if err != nil {
 		panic(err)
 	}
-	r.Discover([]robot.Resource{robot.Services, robot.Endpoints}, []string{"default/productpage"})
 	go r.Run()
 
 	for {
 		obj, _ := r.Pop()
 		if err := process(obj); err != nil {
-			_ = r.ReQueue(obj)
+			// r.GetByKey()
+			// r.ListKeys()
+			r.ReQueue(obj)
 		} else {
 			r.Finish(obj)
 		}
+
 	}
+
+	// go r.Stop()
 }
 
 func process(obj robot.QueueObject) error {
